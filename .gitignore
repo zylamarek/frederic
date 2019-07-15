@@ -2,3 +2,6 @@ __pycache__/
 *.py[cod]
 
 .idea/
+predictor/data/
+predictor/logs/
+predictor/models/
