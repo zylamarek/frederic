@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=32, type=int)
     args = parser.parse_args()
 
-    path = os.path.join('data', 'cat-dataset')
+    path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
 
     img_size = 224
     exp_name = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
@@ -52,7 +52,7 @@ if __name__ == '__main__':
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
                                             ReduceLROnPlateau(factor=0.5, patience=5, verbose=1),
-                                            EarlyStopping(patience=13, verbose=1),
+                                            EarlyStopping(patience=8, verbose=1),
                                             ModelCheckpoint(model_path, verbose=1, save_best_only=True)
                                         ]
                                         )
