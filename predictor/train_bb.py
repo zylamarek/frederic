@@ -5,9 +5,34 @@ from keras.layers import Dense
 from keras.models import Model, load_model
 import argparse
 import keras
+import keras.backend as K
 import os
 
 from cat_data_generator import CatDataGenerator
+
+
+def iou(y_true, y_pred):
+    """
+    Graph version of https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+    """
+
+    y_true = K.permute_dimensions(y_true, (1, 0))
+    y_pred = K.permute_dimensions(y_pred, (1, 0))
+
+    x_0 = K.max([K.gather(y_true, 0), K.gather(y_pred, 0)], axis=0)
+    y_0 = K.max([K.gather(y_true, 1), K.gather(y_pred, 1)], axis=0)
+    x_1 = K.min([K.gather(y_true, 2), K.gather(y_pred, 2)], axis=0)
+    y_1 = K.min([K.gather(y_true, 3), K.gather(y_pred, 3)], axis=0)
+
+    area_inter = K.clip(x_1 - x_0, 0, None) * K.clip(y_1 - y_0, 0, None)
+
+    area_true = (K.gather(y_true, 2) - K.gather(y_true, 0)) * (K.gather(y_true, 3) - K.gather(y_true, 1))
+    area_pred = (K.gather(y_pred, 2) - K.gather(y_pred, 0)) * (K.gather(y_pred, 3) - K.gather(y_pred, 1))
+
+    iou = area_inter / (area_true + area_pred - area_inter)
+
+    return iou
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -43,7 +68,7 @@ if __name__ == '__main__':
     outp = Dense(output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.lr), loss='mse')
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.lr), loss='mse', metrics=[iou])
 
     model.summary()
 
@@ -51,12 +76,15 @@ if __name__ == '__main__':
                                         validation_data=datagen_val,
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
-                                            ReduceLROnPlateau(factor=0.5, patience=5, verbose=1),
-                                            EarlyStopping(patience=8, verbose=1),
-                                            ModelCheckpoint(model_path, verbose=1, save_best_only=True)
+                                            ReduceLROnPlateau(factor=0.5, patience=5, verbose=1,
+                                                              monitor='val_iou', mode='max'),
+                                            EarlyStopping(patience=8, verbose=1,
+                                                          monitor='val_iou', mode='max'),
+                                            ModelCheckpoint(model_path, verbose=1, save_best_only=True,
+                                                            monitor='val_iou', mode='max')
                                         ]
                                         )
 
-    model = load_model(model_path)
+    model = load_model(model_path, custom_objects={'iou': iou})
     test_eval = model.evaluate_generator(datagen_test)
     print(test_eval)
