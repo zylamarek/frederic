@@ -7,6 +7,8 @@ import argparse
 import keras
 import keras.backend as K
 import os
+import csv
+import numpy as np
 
 from cat_data_generator import CatDataGenerator
 
@@ -34,19 +36,47 @@ def iou(y_true, y_pred):
     return iou
 
 
+def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode):
+    try:
+        with open(path, 'r') as f:
+            csv_reader = csv.reader(f, delimiter=';', lineterminator='\n')
+            header = next(csv_reader)
+    except FileNotFoundError:
+        header = ['exp_name'] + list(args) + ['best_ep'] + list(history) + list(test_metrics)
+        with open(path, 'w') as f:
+            csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
+            csv_writer.writerow(header)
+
+    if mode == 'max':
+        best_ep = np.argmax(history[monitor])
+    else:
+        best_ep = np.argmin(history[monitor])
+
+    pool = {k: v[best_ep] for k, v in history.items()}
+    pool['best_ep'] = best_ep
+    pool['exp_name'] = exp_name
+    pool.update(test_metrics)
+    row = [args[h] if h in args.keys() else pool[h] if h in pool else '' for h in header]
+
+    with open(path, 'a') as f:
+        csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
+        csv_writer.writerow(row)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lr', default=0.001, type=float)
+    parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--units', default=128, type=int)
     parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
+    parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
     args = parser.parse_args()
 
     path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
 
     img_size = 224
     exp_name = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
-    exp_name += '_%.5f_%d_%d' % (args.lr, args.units, args.batch_size)
+    exp_name += '_%.5f_%d_%d' % (args.learning_rate, args.units, args.batch_size)
     os.makedirs('models', exist_ok=True)
     model_path = os.path.join('models', '%s.h5' % exp_name)
 
@@ -68,7 +98,7 @@ if __name__ == '__main__':
     outp = Dense(output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.lr), loss='mse', metrics=[iou])
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss='mse', metrics=[iou])
 
     model.summary()
 
@@ -76,7 +106,8 @@ if __name__ == '__main__':
                                         validation_data=datagen_val,
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
-                                            ReduceLROnPlateau(factor=0.5, patience=5, verbose=1,
+                                            ReduceLROnPlateau(factor=args.ReduceLROnPlateau_factor,
+                                                              patience=5, verbose=1,
                                                               monitor='val_iou', mode='max'),
                                             EarlyStopping(patience=8, verbose=1,
                                                           monitor='val_iou', mode='max'),
@@ -85,6 +116,15 @@ if __name__ == '__main__':
                                         ]
                                         )
 
+    print('Testing...')
     model = load_model(model_path, custom_objects={'iou': iou})
-    test_eval = model.evaluate_generator(datagen_test)
-    print(test_eval)
+    test_eval = model.evaluate_generator(datagen_test, verbose=1)
+
+    try:
+        iter(test_eval)
+    except AttributeError:
+        test_eval = [test_eval]
+    test_metrics = {('test_%s' % k): v for k, v in zip(model.metrics_names, test_eval)}
+    print(test_metrics)
+
+    append_hp_result('hpsearch.csv', exp_name, vars(args), train_history.history, test_metrics, 'val_iou', 'max')
