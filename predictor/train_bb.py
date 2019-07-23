@@ -72,7 +72,7 @@ if __name__ == '__main__':
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
     args = parser.parse_args()
 
-    path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
+    data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
 
     img_size = 224
     exp_name = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
@@ -83,12 +83,12 @@ if __name__ == '__main__':
     pretrained_net = mobilenet_v2.MobileNetV2(input_shape=(img_size, img_size, 3),
                                               include_top=False, pooling='max', weights='imagenet')
 
-    path_train = [os.path.join(path, 'CAT_0%d' % i) for i in range(5)]
-    datagen_train = CatDataGenerator(paths=path_train, shuffle=True, batch_size=args.batch_size)
-    path_val = [os.path.join(path, 'CAT_0%d' % i) for i in (5,)]
-    datagen_val = CatDataGenerator(paths=path_val, shuffle=False, batch_size=args.batch_size)
-    path_test = [os.path.join(path, 'CAT_0%d' % i) for i in (6,)]
-    datagen_test = CatDataGenerator(paths=path_test, shuffle=False, batch_size=args.batch_size)
+    path_train = os.path.join(data_path, 'training')
+    datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size)
+    path_val = os.path.join(data_path, 'validation')
+    datagen_val = CatDataGenerator(path=path_val, shuffle=False, batch_size=args.batch_size)
+    path_test = os.path.join(data_path, 'test')
+    datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size)
 
     output_dim = 4
     print('output_dim', output_dim)

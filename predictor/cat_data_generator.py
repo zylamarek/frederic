@@ -6,17 +6,15 @@ from PIL import Image
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, paths, batch_size=64, img_size=224, shuffle=True):
-        self.paths = paths
+    def __init__(self, path, batch_size=64, img_size=224, shuffle=True):
+        self.path = path
         self.batch_size = batch_size
         self.img_size = img_size
         self.shuffle = shuffle
         self.output_dim = 4
         self.img_shape = (self.img_size, self.img_size, 3)
 
-        self.files = []
-        for path in self.paths:
-            self.files.extend([os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')])
+        self.files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
 
         self.on_epoch_end()
 
