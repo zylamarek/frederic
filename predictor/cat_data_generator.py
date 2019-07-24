@@ -6,13 +6,14 @@ from PIL import Image
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, img_size=224, shuffle=True):
+    def __init__(self, path, batch_size=64, img_size=224, shuffle=True, flip_horizontal=False):
         self.path = path
         self.batch_size = batch_size
         self.img_size = img_size
         self.shuffle = shuffle
         self.output_dim = 4
         self.img_shape = (self.img_size, self.img_size, 3)
+        self.flip_horizontal = flip_horizontal
 
         self.files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
 
@@ -30,6 +31,10 @@ class CatDataGenerator(keras.utils.Sequence):
                 landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
 
             img, landmarks = self._resize_img(img, landmarks)
+
+            if self.flip_horizontal and np.random.random_sample() > 0.5:
+                img, landmarks = self._flip_img(img, landmarks)
+
             landmarks = np.round(landmarks).astype('int')
             y[i] = np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
             X[i] = np.asarray(img)
@@ -37,6 +42,11 @@ class CatDataGenerator(keras.utils.Sequence):
         X = mobilenet_v2.preprocess_input(X)
 
         return X, y
+
+    def _flip_img(self, img, landmarks):
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        landmarks[:, 0] = img.size[0] - landmarks[:, 0]
+        return img, landmarks
 
     def _resize_img(self, img, landmarks):
         old_size = img.size

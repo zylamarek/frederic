@@ -70,6 +70,8 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
+    parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=float)
+    parser.add_argument('--flip_horizontal', action='store_true')
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -84,11 +86,14 @@ if __name__ == '__main__':
                                               include_top=False, pooling='max', weights='imagenet')
 
     path_train = os.path.join(data_path, 'training')
-    datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size)
+    datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
+                                     flip_horizontal=args.flip_horizontal)
     path_val = os.path.join(data_path, 'validation')
-    datagen_val = CatDataGenerator(path=path_val, shuffle=False, batch_size=args.batch_size)
+    datagen_val = CatDataGenerator(path=path_val, shuffle=False, batch_size=args.batch_size,
+                                   flip_horizontal=False)
     path_test = os.path.join(data_path, 'test')
-    datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size)
+    datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size,
+                                    flip_horizontal=False)
 
     output_dim = 4
     print('output_dim', output_dim)
@@ -107,9 +112,9 @@ if __name__ == '__main__':
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
                                             ReduceLROnPlateau(factor=args.ReduceLROnPlateau_factor,
-                                                              patience=5, verbose=1,
+                                                              patience=args.ReduceLROnPlateau_patience, verbose=1,
                                                               monitor='val_iou', mode='max'),
-                                            EarlyStopping(patience=8, verbose=1,
+                                            EarlyStopping(patience=(2 * args.ReduceLROnPlateau_patience) + 3, verbose=1,
                                                           monitor='val_iou', mode='max'),
                                             ModelCheckpoint(model_path, verbose=1, save_best_only=True,
                                                             monitor='val_iou', mode='max')
