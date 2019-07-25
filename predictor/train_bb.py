@@ -36,6 +36,10 @@ def iou(y_true, y_pred):
     return iou
 
 
+def iou_loss(y_true, y_pred):
+    return 1. - iou(y_true, y_pred)
+
+
 def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode):
     try:
         with open(path, 'r') as f:
@@ -63,6 +67,9 @@ def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode)
         csv_writer.writerow(row)
 
 
+loss_fn_map = {'mse': 'mse',
+               'iou': iou_loss}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--learning_rate', default=0.001, type=float)
@@ -72,6 +79,7 @@ if __name__ == '__main__':
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
     parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=float)
     parser.add_argument('--flip_horizontal', action='store_true')
+    parser.add_argument('--loss_fn', default='mse', type=str, choices=['mse', 'iou'])
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -103,7 +111,13 @@ if __name__ == '__main__':
     outp = Dense(output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss='mse', metrics=[iou])
+    if args.loss_fn == 'iou':
+        # pretrain using mse loss for stability
+        model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[iou])
+        model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50)
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn_map[args.loss_fn],
+                  metrics=[iou, 'mse'])
 
     model.summary()
 
@@ -122,7 +136,7 @@ if __name__ == '__main__':
                                         )
 
     print('Testing...')
-    model = load_model(model_path, custom_objects={'iou': iou})
+    model = load_model(model_path, custom_objects={'iou': iou, 'iou_loss': iou_loss})
     test_eval = model.evaluate_generator(datagen_test, verbose=1)
 
     try:
