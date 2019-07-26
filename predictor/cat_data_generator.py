@@ -6,14 +6,18 @@ from PIL import Image
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, img_size=224, shuffle=True, flip_horizontal=False):
+    def __init__(self, path, batch_size=64, img_size=224, shuffle=True, include_landmarks=False, flip_horizontal=False):
         self.path = path
         self.batch_size = batch_size
         self.img_size = img_size
         self.shuffle = shuffle
-        self.output_dim = 4
-        self.img_shape = (self.img_size, self.img_size, 3)
+        self.include_landmarks = include_landmarks
         self.flip_horizontal = flip_horizontal
+
+        self.output_dim = 4
+        if self.include_landmarks:
+            self.output_dim += 10
+        self.img_shape = (self.img_size, self.img_size, 3)
 
         self.files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
 
@@ -36,7 +40,12 @@ class CatDataGenerator(keras.utils.Sequence):
                 img, landmarks = self._flip_img(img, landmarks)
 
             landmarks = np.round(landmarks).astype('int')
-            y[i] = np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
+            bounding_box = np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
+
+            if self.include_landmarks:
+                y[i] = np.concatenate((bounding_box, landmarks.flatten()))
+            else:
+                y[i] = bounding_box
             X[i] = np.asarray(img)
 
         X = mobilenet_v2.preprocess_input(X)

@@ -33,11 +33,26 @@ def iou(y_true, y_pred):
 
     iou = area_inter / (area_true + area_pred - area_inter)
 
-    return iou
+    return K.mean(iou, axis=-1)
 
 
 def iou_loss(y_true, y_pred):
     return 1. - iou(y_true, y_pred)
+
+
+def get_iou_and_mse_landmarks_loss(ratio):
+    def iou_and_mse_landmarks_loss(y_true, y_pred):
+        iou = iou_loss(y_true, y_pred)
+
+        y_true = K.permute_dimensions(y_true, (1, 0))
+        y_pred = K.permute_dimensions(y_pred, (1, 0))
+        y_true = K.gather(y_true, np.arange(4, 12))
+        y_pred = K.gather(y_pred, np.arange(4, 12))
+        mse = K.mean(K.square(y_pred - y_true), axis=0)
+
+        return iou + mse * ratio
+
+    return iou_and_mse_landmarks_loss
 
 
 def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode):
@@ -77,9 +92,11 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
-    parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=float)
+    parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=int)
     parser.add_argument('--flip_horizontal', action='store_true')
-    parser.add_argument('--loss_fn', default='mse', type=str, choices=['mse', 'iou'])
+    parser.add_argument('--loss_fn', default='mse', type=str, choices=['mse', 'iou', 'iou_and_mse_landmarks'])
+    parser.add_argument('--iou_and_mse_landmarks_ratio', default=1e-5, type=float)
+    parser.add_argument('--include_landmarks', action='store_true')
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -95,15 +112,17 @@ if __name__ == '__main__':
 
     path_train = os.path.join(data_path, 'training')
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
-                                     flip_horizontal=args.flip_horizontal)
+                                     include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal)
     path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, shuffle=False, batch_size=args.batch_size,
-                                   flip_horizontal=False)
+                                   include_landmarks=args.include_landmarks, flip_horizontal=False)
     path_test = os.path.join(data_path, 'test')
     datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size,
-                                    flip_horizontal=False)
+                                    include_landmarks=args.include_landmarks, flip_horizontal=False)
 
     output_dim = 4
+    if args.include_landmarks:
+        output_dim += 10
     print('output_dim', output_dim)
 
     outp = Dense(args.units, activation='relu')(pretrained_net.output)
@@ -111,13 +130,20 @@ if __name__ == '__main__':
     outp = Dense(output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
-    if args.loss_fn == 'iou':
+    if args.loss_fn in ('iou', 'iou_and_mse_landmarks'):
         # pretrain using mse loss for stability
         model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[iou])
         model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50)
 
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn_map[args.loss_fn],
-                  metrics=[iou, 'mse'])
+    custom_objects = {'iou': iou,
+                      'iou_loss': iou_loss}
+    if args.loss_fn == 'iou_and_mse_landmarks':
+        loss_fn = get_iou_and_mse_landmarks_loss(args.iou_and_mse_landmarks_ratio)
+        custom_objects['iou_and_mse_landmarks_loss'] = loss_fn
+    else:
+        loss_fn = loss_fn_map[args.loss_fn]
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[iou, 'mse'])
 
     model.summary()
 
@@ -136,7 +162,7 @@ if __name__ == '__main__':
                                         )
 
     print('Testing...')
-    model = load_model(model_path, custom_objects={'iou': iou, 'iou_loss': iou_loss})
+    model = load_model(model_path, custom_objects=custom_objects)
     test_eval = model.evaluate_generator(datagen_test, verbose=1)
 
     try:
