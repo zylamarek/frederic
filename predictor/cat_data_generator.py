@@ -46,6 +46,13 @@ class CatDataGenerator(keras.utils.Sequence):
     def _flip_img(self, img, landmarks):
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
         landmarks[:, 0] = img.size[0] - landmarks[:, 0]
+
+        # flip eyes and ears landmarks (left becomes right and right becomes left)
+        for a, b in ((0, 1), (3, 4)):
+            tmp = landmarks[a].copy()
+            landmarks[a] = landmarks[b]
+            landmarks[b] = tmp
+
         return img, landmarks
 
     def _resize_img(self, img, landmarks):
