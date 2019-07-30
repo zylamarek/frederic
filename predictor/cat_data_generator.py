@@ -4,12 +4,13 @@ from keras.applications import mobilenet_v2
 import os
 from PIL import Image
 
+import utils
+
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, img_size=224, shuffle=True, include_landmarks=False, flip_horizontal=False):
+    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False, flip_horizontal=False):
         self.path = path
         self.batch_size = batch_size
-        self.img_size = img_size
         self.shuffle = shuffle
         self.include_landmarks = include_landmarks
         self.flip_horizontal = flip_horizontal
@@ -17,15 +18,15 @@ class CatDataGenerator(keras.utils.Sequence):
         self.output_dim = 4
         if self.include_landmarks:
             self.output_dim += 10
-        self.img_shape = (self.img_size, self.img_size, 3)
 
         self.files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
+        self.indexes = np.arange(len(self.files))
 
         self.on_epoch_end()
 
     def __getitem__(self, index):
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
-        X = np.zeros((len(indexes),) + self.img_shape)
+        x = np.zeros((len(indexes),) + utils.img_shape)
         y = np.zeros((len(indexes), self.output_dim))
 
         for i, idx in enumerate(indexes):
@@ -46,13 +47,14 @@ class CatDataGenerator(keras.utils.Sequence):
                 y[i] = np.concatenate((bounding_box, landmarks.flatten()))
             else:
                 y[i] = bounding_box
-            X[i] = np.asarray(img)
+            x[i] = np.asarray(img)
 
-        X = mobilenet_v2.preprocess_input(X)
+        x = mobilenet_v2.preprocess_input(x)
 
-        return X, y
+        return x, y
 
-    def _flip_img(self, img, landmarks):
+    @staticmethod
+    def _flip_img(img, landmarks):
         img = img.transpose(Image.FLIP_LEFT_RIGHT)
         landmarks[:, 0] = img.size[0] - landmarks[:, 0]
 
@@ -64,16 +66,17 @@ class CatDataGenerator(keras.utils.Sequence):
 
         return img, landmarks
 
-    def _resize_img(self, img, landmarks):
+    @staticmethod
+    def _resize_img(img, landmarks):
         old_size = img.size
-        if old_size != (self.img_size, self.img_size):
-            ratio = float(self.img_size) / max(old_size)
+        if old_size != (utils.img_size, utils.img_size):
+            ratio = float(utils.img_size) / max(old_size)
             new_size = tuple([int(x * ratio) for x in old_size])
             old_img = img.resize(new_size, Image.LANCZOS)
 
-            img = Image.new('RGB', (self.img_size, self.img_size))
-            x_diff = (self.img_size - new_size[0]) // 2
-            y_diff = (self.img_size - new_size[1]) // 2
+            img = Image.new('RGB', (utils.img_size, utils.img_size))
+            x_diff = (utils.img_size - new_size[0]) // 2
+            y_diff = (utils.img_size - new_size[1]) // 2
             img.paste(old_img, (x_diff, y_diff))
 
             landmarks *= ratio
@@ -85,6 +88,5 @@ class CatDataGenerator(keras.utils.Sequence):
         return int(np.ceil(len(self.files) / self.batch_size))
 
     def on_epoch_end(self):
-        self.indexes = np.arange(len(self.files))
         if self.shuffle:
             np.random.shuffle(self.indexes)

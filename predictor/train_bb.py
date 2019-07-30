@@ -1,94 +1,19 @@
-from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
+import os
+import argparse
 import datetime
+import keras
+from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from keras.applications import mobilenet_v2
 from keras.layers import Dense
 from keras.models import Model, load_model
-import argparse
-import keras
-import keras.backend as K
-import os
-import csv
-import numpy as np
 
 from cat_data_generator import CatDataGenerator
-
-
-def iou(y_true, y_pred):
-    """
-    Graph version of https://www.pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
-    """
-
-    y_true = K.permute_dimensions(y_true, (1, 0))
-    y_pred = K.permute_dimensions(y_pred, (1, 0))
-
-    x_0 = K.max([K.gather(y_true, 0), K.gather(y_pred, 0)], axis=0)
-    y_0 = K.max([K.gather(y_true, 1), K.gather(y_pred, 1)], axis=0)
-    x_1 = K.min([K.gather(y_true, 2), K.gather(y_pred, 2)], axis=0)
-    y_1 = K.min([K.gather(y_true, 3), K.gather(y_pred, 3)], axis=0)
-
-    area_inter = K.clip(x_1 - x_0, 0, None) * K.clip(y_1 - y_0, 0, None)
-
-    area_true = (K.gather(y_true, 2) - K.gather(y_true, 0)) * (K.gather(y_true, 3) - K.gather(y_true, 1))
-    area_pred = (K.gather(y_pred, 2) - K.gather(y_pred, 0)) * (K.gather(y_pred, 3) - K.gather(y_pred, 1))
-
-    iou = area_inter / (area_true + area_pred - area_inter)
-
-    return K.mean(iou, axis=-1)
-
-
-def iou_loss(y_true, y_pred):
-    return 1. - iou(y_true, y_pred)
-
-
-def get_iou_and_mse_landmarks_loss(ratio):
-    def iou_and_mse_landmarks_loss(y_true, y_pred):
-        iou = iou_loss(y_true, y_pred)
-
-        y_true = K.permute_dimensions(y_true, (1, 0))
-        y_pred = K.permute_dimensions(y_pred, (1, 0))
-        y_true = K.gather(y_true, np.arange(4, 12))
-        y_pred = K.gather(y_pred, np.arange(4, 12))
-        mse = K.mean(K.square(y_pred - y_true), axis=0)
-
-        return iou + mse * ratio
-
-    return iou_and_mse_landmarks_loss
-
-
-def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode):
-    try:
-        with open(path, 'r') as f:
-            csv_reader = csv.reader(f, delimiter=';', lineterminator='\n')
-            header = next(csv_reader)
-    except FileNotFoundError:
-        header = ['exp_name'] + list(args) + ['best_ep'] + list(history) + list(test_metrics)
-        with open(path, 'w') as f:
-            csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
-            csv_writer.writerow(header)
-
-    if mode == 'max':
-        best_ep = np.argmax(history[monitor])
-    else:
-        best_ep = np.argmin(history[monitor])
-
-    pool = {k: v[best_ep] for k, v in history.items()}
-    pool['best_ep'] = best_ep
-    pool['exp_name'] = exp_name
-    pool.update(test_metrics)
-    row = [args[h] if h in args.keys() else pool[h] if h in pool else '' for h in header]
-
-    with open(path, 'a') as f:
-        csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
-        csv_writer.writerow(row)
-
-
-loss_fn_map = {'mse': 'mse',
-               'iou': iou_loss}
+import utils
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--units', default=128, type=int)
+    parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
@@ -101,14 +26,10 @@ if __name__ == '__main__':
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
 
-    img_size = 224
     exp_name = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
-    exp_name += '_%.5f_%d_%d' % (args.learning_rate, args.units, args.batch_size)
+    exp_name += '_%s' % args.loss_fn
     os.makedirs('models', exist_ok=True)
     model_path = os.path.join('models', '%s.h5' % exp_name)
-
-    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=(img_size, img_size, 3),
-                                              include_top=False, pooling='max', weights='imagenet')
 
     path_train = os.path.join(data_path, 'training')
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
@@ -120,31 +41,19 @@ if __name__ == '__main__':
     datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size,
                                     include_landmarks=args.include_landmarks, flip_horizontal=False)
 
-    output_dim = 4
-    if args.include_landmarks:
-        output_dim += 10
-    print('output_dim', output_dim)
-
+    pretrained_net = mobilenet_v2.MobileNetV2(include_top=False, pooling='max')
     outp = Dense(args.units, activation='relu')(pretrained_net.output)
     outp = Dense(args.units, activation='relu')(outp)
-    outp = Dense(output_dim, activation='linear')(outp)
+    outp = Dense(datagen_train.output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
     if args.loss_fn in ('iou', 'iou_and_mse_landmarks'):
         # pretrain using mse loss for stability
-        model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[iou])
+        model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[utils.iou])
         model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50)
 
-    custom_objects = {'iou': iou,
-                      'iou_loss': iou_loss}
-    if args.loss_fn == 'iou_and_mse_landmarks':
-        loss_fn = get_iou_and_mse_landmarks_loss(args.iou_and_mse_landmarks_ratio)
-        custom_objects['iou_and_mse_landmarks_loss'] = loss_fn
-    else:
-        loss_fn = loss_fn_map[args.loss_fn]
-
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[iou, 'mse'])
-
+    loss_fn = utils.get_loss_fn(args.loss_fn, args.iou_and_mse_landmarks_ratio)
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[utils.iou, 'mse'])
     model.summary()
 
     train_history = model.fit_generator(generator=datagen_train, epochs=args.epochs, shuffle=True,
@@ -162,6 +71,7 @@ if __name__ == '__main__':
                                         )
 
     print('Testing...')
+    custom_objects = utils.get_custom_objects(args.loss_fn, loss_fn)
     model = load_model(model_path, custom_objects=custom_objects)
     test_eval = model.evaluate_generator(datagen_test, verbose=1)
 
@@ -172,4 +82,4 @@ if __name__ == '__main__':
     test_metrics = {('test_%s' % k): v for k, v in zip(model.metrics_names, test_eval)}
     print(test_metrics)
 
-    append_hp_result('hpsearch.csv', exp_name, vars(args), train_history.history, test_metrics, 'val_iou', 'max')
+    utils.append_hp_result('hpsearch.csv', exp_name, vars(args), train_history.history, test_metrics, 'val_iou', 'max')
