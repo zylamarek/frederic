@@ -34,12 +34,12 @@ if __name__ == '__main__':
     path_train = os.path.join(data_path, 'training')
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
                                      include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal)
+    test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
+                                include_landmarks=args.include_landmarks, flip_horizontal=False)
     path_val = os.path.join(data_path, 'validation')
-    datagen_val = CatDataGenerator(path=path_val, shuffle=False, batch_size=args.batch_size,
-                                   include_landmarks=args.include_landmarks, flip_horizontal=False)
+    datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     path_test = os.path.join(data_path, 'test')
-    datagen_test = CatDataGenerator(path=path_test, shuffle=False, batch_size=args.batch_size,
-                                    include_landmarks=args.include_landmarks, flip_horizontal=False)
+    datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
     pretrained_net = mobilenet_v2.MobileNetV2(include_top=False, pooling='max')
     outp = Dense(args.units, activation='relu')(pretrained_net.output)
