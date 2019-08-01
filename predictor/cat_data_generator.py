@@ -8,12 +8,13 @@ import utils
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False, flip_horizontal=False):
+    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False, flip_horizontal=False, rotate=False):
         self.path = path
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.include_landmarks = include_landmarks
         self.flip_horizontal = flip_horizontal
+        self.rotate = rotate
 
         self.output_dim = 4
         if self.include_landmarks:
@@ -35,6 +36,10 @@ class CatDataGenerator(keras.utils.Sequence):
             with open(img_file + '.cat', 'r') as cat:
                 landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
 
+            if self.rotate:
+                angle = 360 * np.random.random_sample()
+                img, landmarks = self._rotate(img, landmarks, angle)
+
             img, landmarks = self._resize_img(img, landmarks)
 
             if self.flip_horizontal and np.random.random_sample() > 0.5:
@@ -52,6 +57,22 @@ class CatDataGenerator(keras.utils.Sequence):
         x = mobilenet_v2.preprocess_input(x)
 
         return x, y
+
+    @staticmethod
+    def _rotate(img, landmarks, angle):
+        radians = np.radians(angle)
+        offset_x, offset_y = img.size[0] / 2, img.size[1] / 2
+        adjusted_x = landmarks[:, 0] - offset_x
+        adjusted_y = landmarks[:, 1] - offset_y
+        cos_rad = np.cos(radians)
+        sin_rad = np.sin(radians)
+        qx = offset_x + cos_rad * adjusted_x + sin_rad * adjusted_y
+        qy = offset_y + -sin_rad * adjusted_x + cos_rad * adjusted_y
+        landmarks = np.array([qx, qy]).T
+
+        img = img.rotate(angle, resample=Image.BICUBIC)
+
+        return img, landmarks
 
     @staticmethod
     def _flip_img(img, landmarks):

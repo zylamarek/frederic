@@ -18,10 +18,11 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
     parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=int)
-    parser.add_argument('--flip_horizontal', action='store_true')
     parser.add_argument('--loss_fn', default='mse', type=str, choices=['mse', 'iou', 'iou_and_mse_landmarks'])
     parser.add_argument('--iou_and_mse_landmarks_ratio', default=1e-5, type=float)
     parser.add_argument('--include_landmarks', action='store_true')
+    parser.add_argument('--flip_horizontal', action='store_true')
+    parser.add_argument('--rotate', action='store_true')
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -33,9 +34,11 @@ if __name__ == '__main__':
 
     path_train = os.path.join(data_path, 'training')
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
-                                     include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal)
+                                     include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal,
+                                     rotate=args.rotate)
     test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
-                                include_landmarks=args.include_landmarks, flip_horizontal=False)
+                                include_landmarks=args.include_landmarks, flip_horizontal=False,
+                                rotate=False)
     path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     path_test = os.path.join(data_path, 'test')
