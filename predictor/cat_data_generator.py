@@ -70,7 +70,8 @@ class CatDataGenerator(keras.utils.Sequence):
         qy = offset_y + -sin_rad * adjusted_x + cos_rad * adjusted_y
         landmarks = np.array([qx, qy]).T
 
-        img = img.rotate(angle, resample=Image.BICUBIC)
+        sampling_method = np.random.choice([Image.NEAREST, Image.BILINEAR, Image.BICUBIC])
+        img = img.rotate(angle, resample=sampling_method)
 
         return img, landmarks
 
