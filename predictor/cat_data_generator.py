@@ -8,13 +8,17 @@ import utils
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False, flip_horizontal=False, rotate=False):
+    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
+                 flip_horizontal=False, rotate=False, rotate_90=False, sampling_method='random'):
         self.path = path
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.include_landmarks = include_landmarks
+
         self.flip_horizontal = flip_horizontal
         self.rotate = rotate
+        self.rotate_90 = rotate_90
+        self.sampling_method = sampling_method
 
         self.output_dim = 4
         if self.include_landmarks:
@@ -38,7 +42,11 @@ class CatDataGenerator(keras.utils.Sequence):
 
             if self.rotate:
                 angle = 360 * np.random.random_sample()
-                img, landmarks = self._rotate(img, landmarks, angle)
+                img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method)
+
+            if self.rotate_90:
+                angle = np.random.choice([0, 90, 180, 270])
+                img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method)
 
             img, landmarks = self._resize_img(img, landmarks)
 
@@ -59,7 +67,10 @@ class CatDataGenerator(keras.utils.Sequence):
         return x, y
 
     @staticmethod
-    def _rotate(img, landmarks, angle):
+    def _rotate(img, landmarks, angle, sampling_method='random'):
+        if angle == 0:
+            return img, landmarks
+
         radians = np.radians(angle)
         offset_x, offset_y = img.size[0] / 2, img.size[1] / 2
         adjusted_x = landmarks[:, 0] - offset_x
@@ -70,8 +81,16 @@ class CatDataGenerator(keras.utils.Sequence):
         qy = offset_y + -sin_rad * adjusted_x + cos_rad * adjusted_y
         landmarks = np.array([qx, qy]).T
 
-        sampling_method = np.random.choice([Image.NEAREST, Image.BILINEAR, Image.BICUBIC])
-        img = img.rotate(angle, resample=sampling_method)
+        if angle == 90:
+            img = img.transpose(Image.ROTATE_90)
+        elif angle == 180:
+            img = img.transpose(Image.ROTATE_180)
+        elif angle == 270:
+            img = img.transpose(Image.ROTATE_270)
+        else:
+            if sampling_method == 'random':
+                sampling_method = np.random.choice([Image.NEAREST, Image.BILINEAR, Image.BICUBIC])
+            img = img.rotate(angle, resample=sampling_method)
 
         return img, landmarks
 
