@@ -6,6 +6,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, Ear
 from keras.applications import mobilenet_v2
 from keras.layers import Dense
 from keras.models import Model, load_model
+from PIL import Image
 
 from cat_data_generator import CatDataGenerator
 import utils
@@ -36,10 +37,10 @@ if __name__ == '__main__':
     path_train = os.path.join(data_path, 'training')
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
                                      include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal,
-                                     rotate=args.rotate, rotate_90=args.rotate_90)
+                                     rotate=args.rotate, rotate_90=args.rotate_90, sampling_method_resize='random')
     test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
                                 include_landmarks=args.include_landmarks, flip_horizontal=False,
-                                rotate=False, rotate_90=False)
+                                rotate=False, rotate_90=False, sampling_method_resize=Image.LANCZOS)
     path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     path_test = os.path.join(data_path, 'test')
