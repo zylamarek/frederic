@@ -9,7 +9,7 @@ import utils
 
 class CatDataGenerator(keras.utils.Sequence):
     def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
-                 flip_horizontal=False, rotate=False, rotate_90=False,
+                 flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
                  sampling_method_rotate='random', sampling_method_resize='random'):
         self.path = path
         self.batch_size = batch_size
@@ -19,6 +19,7 @@ class CatDataGenerator(keras.utils.Sequence):
         self.flip_horizontal = flip_horizontal
         self.rotate = rotate
         self.rotate_90 = rotate_90
+        self.rotate_n = rotate_n
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
 
@@ -48,6 +49,10 @@ class CatDataGenerator(keras.utils.Sequence):
 
             if self.rotate_90:
                 angle = np.random.choice([0, 90, 180, 270])
+                img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
+
+            if self.rotate_n > 0:
+                angle = self.rotate_n * (2. * np.random.random_sample() - 1.)
                 img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
 
             img, landmarks = self._resize_img(img, landmarks, sampling_method=self.sampling_method_resize)
