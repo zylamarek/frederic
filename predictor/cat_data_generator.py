@@ -87,6 +87,7 @@ class CatDataGenerator(keras.utils.Sequence):
         qx = offset_x + cos_rad * adjusted_x + sin_rad * adjusted_y
         qy = offset_y + -sin_rad * adjusted_x + cos_rad * adjusted_y
         landmarks = np.array([qx, qy]).T
+        old_size = img.size
 
         if angle == 90:
             img = img.transpose(Image.ROTATE_90)
@@ -98,6 +99,9 @@ class CatDataGenerator(keras.utils.Sequence):
             if sampling_method == 'random':
                 sampling_method = np.random.choice([Image.NEAREST, Image.BILINEAR, Image.BICUBIC])
             img = img.rotate(angle, resample=sampling_method)
+
+        landmarks[:, 0] += (img.size[0] - old_size[0]) / 2
+        landmarks[:, 1] += (img.size[1] - old_size[1]) / 2
 
         return img, landmarks
 
