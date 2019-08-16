@@ -58,14 +58,14 @@ if __name__ == '__main__':
     if args.loss_fn in ('iou', 'iou_and_mse_landmarks'):
         # pretrain using mse loss for stability
         model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[utils.iou])
-        model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50)
+        model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50, workers=3)
 
     loss_fn = utils.get_loss_fn(args.loss_fn, args.iou_and_mse_landmarks_ratio)
     model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[utils.iou, 'mse'])
     model.summary()
 
     train_history = model.fit_generator(generator=datagen_train, epochs=args.epochs, shuffle=True,
-                                        validation_data=datagen_val,
+                                        validation_data=datagen_val, workers=3,
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
                                             ReduceLROnPlateau(factor=args.ReduceLROnPlateau_factor,
