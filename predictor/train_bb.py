@@ -13,7 +13,9 @@ import utils
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--hpsearch_file', default='hpsearch.csv', type=str)
     parser.add_argument('--units', default=128, type=int)
+    parser.add_argument('--pooling', default='max', type=str, choices=['max', 'avg'])
     parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--epochs', default=100, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
@@ -49,7 +51,7 @@ if __name__ == '__main__':
     path_test = os.path.join(data_path, 'test')
     datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
-    pretrained_net = mobilenet_v2.MobileNetV2(include_top=False, pooling='max')
+    pretrained_net = mobilenet_v2.MobileNetV2(include_top=False, pooling=args.pooling)
     outp = Dense(args.units, activation='relu')(pretrained_net.output)
     outp = Dense(args.units, activation='relu')(outp)
     outp = Dense(datagen_train.output_dim, activation='linear')(outp)
@@ -64,17 +66,18 @@ if __name__ == '__main__':
     model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[utils.iou, 'mse'])
     model.summary()
 
+    monitor, mode = 'val_iou', 'max'
     train_history = model.fit_generator(generator=datagen_train, epochs=args.epochs, shuffle=True,
                                         validation_data=datagen_val, workers=3,
                                         callbacks=[
                                             TensorBoard(log_dir=os.path.join('logs', exp_name)),
                                             ReduceLROnPlateau(factor=args.ReduceLROnPlateau_factor,
                                                               patience=args.ReduceLROnPlateau_patience, verbose=1,
-                                                              monitor='val_iou', mode='max'),
+                                                              monitor=monitor, mode=mode),
                                             EarlyStopping(patience=(2 * args.ReduceLROnPlateau_patience) + 3, verbose=1,
-                                                          monitor='val_iou', mode='max'),
+                                                          monitor=monitor, mode=mode),
                                             ModelCheckpoint(model_path, verbose=1, save_best_only=True,
-                                                            monitor='val_iou', mode='max')
+                                                            monitor=monitor, mode=mode)
                                         ]
                                         )
 
@@ -90,4 +93,5 @@ if __name__ == '__main__':
     test_metrics = {('test_%s' % k): v for k, v in zip(model.metrics_names, test_eval)}
     print(test_metrics)
 
-    utils.append_hp_result('hpsearch.csv', exp_name, vars(args), train_history.history, test_metrics, 'val_iou', 'max')
+    utils.append_hp_result(path=args.hpsearch_file, exp_name=exp_name, args=vars(args), history=train_history.history,
+                           test_metrics=test_metrics, monitor=monitor, mode=mode)

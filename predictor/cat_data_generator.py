@@ -61,7 +61,7 @@ class CatDataGenerator(keras.utils.Sequence):
                 img, landmarks = self._flip_img(img, landmarks)
 
             landmarks = np.round(landmarks).astype('int')
-            bounding_box = np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
+            bounding_box = self.get_bounding_box(landmarks)
 
             if self.include_landmarks:
                 y[i] = np.concatenate((bounding_box, landmarks.flatten()))
@@ -75,7 +75,7 @@ class CatDataGenerator(keras.utils.Sequence):
 
     @staticmethod
     def _rotate(img, landmarks, angle, sampling_method='random'):
-        if angle == 0:
+        if angle in (0, 360):
             return img, landmarks
 
         radians = np.radians(angle)
@@ -106,19 +106,6 @@ class CatDataGenerator(keras.utils.Sequence):
         return img, landmarks
 
     @staticmethod
-    def _flip_img(img, landmarks):
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
-        landmarks[:, 0] = img.size[0] - landmarks[:, 0]
-
-        # flip eyes and ears landmarks (left becomes right and right becomes left)
-        for a, b in ((0, 1), (3, 4)):
-            tmp = landmarks[a].copy()
-            landmarks[a] = landmarks[b]
-            landmarks[b] = tmp
-
-        return img, landmarks
-
-    @staticmethod
     def _resize_img(img, landmarks, sampling_method='random'):
         old_size = img.size
         if old_size != (utils.img_size, utils.img_size):
@@ -138,6 +125,23 @@ class CatDataGenerator(keras.utils.Sequence):
             landmarks += np.array((x_diff, y_diff))
 
         return img, landmarks
+
+    @staticmethod
+    def _flip_img(img, landmarks):
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        landmarks[:, 0] = img.size[0] - landmarks[:, 0]
+
+        # flip eyes and ears landmarks (left becomes right and right becomes left)
+        for a, b in ((0, 1), (3, 4)):
+            tmp = landmarks[a].copy()
+            landmarks[a] = landmarks[b]
+            landmarks[b] = tmp
+
+        return img, landmarks
+
+    @staticmethod
+    def get_bounding_box(landmarks):
+        return np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
 
     def __len__(self):
         return int(np.ceil(len(self.files) / self.batch_size))
