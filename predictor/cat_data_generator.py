@@ -9,7 +9,7 @@ import utils
 
 class CatDataGenerator(keras.utils.Sequence):
     def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
-                 flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
+                 flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0, crop=False,
                  sampling_method_rotate='random', sampling_method_resize='random'):
         self.path = path
         self.batch_size = batch_size
@@ -20,6 +20,7 @@ class CatDataGenerator(keras.utils.Sequence):
         self.rotate = rotate
         self.rotate_90 = rotate_90
         self.rotate_n = rotate_n
+        self.crop = crop
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
 
@@ -54,6 +55,10 @@ class CatDataGenerator(keras.utils.Sequence):
             if self.rotate_n > 0:
                 angle = self.rotate_n * (2. * np.random.random_sample() - 1.)
                 img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
+
+            if self.crop:
+                bb_crop = self._sample_bounding_box(img.size, landmarks)
+                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
             img, landmarks = self._resize_img(img, landmarks, sampling_method=self.sampling_method_resize)
 
@@ -103,6 +108,51 @@ class CatDataGenerator(keras.utils.Sequence):
         landmarks[:, 0] += (img.size[0] - old_size[0]) / 2
         landmarks[:, 1] += (img.size[1] - old_size[1]) / 2
 
+        return img, landmarks
+
+    @staticmethod
+    def _sample_bounding_box(size, landmarks, margin=0.1, bb_min=0.8):
+        """
+        Samples a bounding box for cropping so that at least 'bb_min' of each dimension of the original bounding box
+        is present in the new cropped image.
+        """
+
+        # Get old bounding box limited by the size of the image
+        bb_old = CatDataGenerator.get_bounding_box(landmarks)
+        bb_old = [np.max((0, bb_old[0])),
+                  np.max((0, bb_old[1])),
+                  np.min((size[0] - 1, bb_old[2])),
+                  np.min((size[1] - 1, bb_old[3]))]
+
+        bb_old_size = np.max((bb_old[2] - bb_old[0], bb_old[3] - bb_old[1]))
+        img_size_min = int(np.min(size) * (1. + 2. * margin))
+
+        # Sample size of the new bounding box
+        bb_crop_size_min = int(bb_old_size * bb_min) + 1
+        bb_crop_size_max = np.max((img_size_min - 1, bb_crop_size_min))
+        bb_crop_size = np.random.random_integers(low=bb_crop_size_min, high=bb_crop_size_max)
+
+        # Sample x of the starting point of the new bounding box
+        bb_crop_start_x_min = np.max((-int(margin * size[0]), bb_old[2] - bb_crop_size))
+        bb_crop_start_x_max = np.max((0, bb_old[0] + int((1. - bb_min) * bb_old_size) + 1))
+        bb_crop_start_x = np.random.random_integers(low=bb_crop_start_x_min, high=bb_crop_start_x_max)
+
+        # Sample y of the starting point of the new bounding box
+        bb_crop_start_y_min = np.max((-int(margin * size[1]), bb_old[3] - bb_crop_size))
+        bb_crop_start_y_max = np.max((0, bb_old[1] + int((1. - bb_min) * bb_old_size) + 1))
+        bb_crop_start_y = np.random.random_integers(low=bb_crop_start_y_min, high=bb_crop_start_y_max)
+
+        bb_crop = [bb_crop_start_x,
+                   bb_crop_start_y,
+                   bb_crop_start_x + bb_crop_size,
+                   bb_crop_start_y + bb_crop_size]
+
+        return np.array(bb_crop)
+
+    @staticmethod
+    def _crop_bounding_box(img, landmarks, bounding_box):
+        img = img.crop(bounding_box)
+        landmarks -= bounding_box[:2]
         return img, landmarks
 
     @staticmethod

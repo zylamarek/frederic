@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument('--rotate', action='store_true')
     parser.add_argument('--rotate_90', action='store_true')
     parser.add_argument('--rotate_n', default=0, type=int)
+    parser.add_argument('--crop', action='store_true')
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -41,11 +42,11 @@ if __name__ == '__main__':
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
                                      include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal,
                                      rotate=args.rotate, rotate_90=args.rotate_90, rotate_n=args.rotate_n,
-                                     sampling_method_resize='random')
+                                     crop=args.crop, sampling_method_resize='random')
     test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
                                 include_landmarks=args.include_landmarks, flip_horizontal=False,
                                 rotate=False, rotate_90=False, rotate_n=0,
-                                sampling_method_resize=Image.LANCZOS)
+                                crop=False, sampling_method_resize=Image.LANCZOS)
     path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     path_test = os.path.join(data_path, 'test')
