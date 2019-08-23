@@ -79,7 +79,7 @@ class CatDataGenerator(keras.utils.Sequence):
         return x, y
 
     @staticmethod
-    def _rotate(img, landmarks, angle, sampling_method='random'):
+    def _rotate(img, landmarks, angle, expand=True, sampling_method='random'):
         if angle in (0, 360):
             return img, landmarks
 
@@ -103,7 +103,7 @@ class CatDataGenerator(keras.utils.Sequence):
         else:
             if sampling_method == 'random':
                 sampling_method = np.random.choice([Image.NEAREST, Image.BILINEAR, Image.BICUBIC])
-            img = img.rotate(angle, resample=sampling_method)
+            img = img.rotate(angle, expand=expand, resample=sampling_method)
 
         landmarks[:, 0] += (img.size[0] - old_size[0]) / 2
         landmarks[:, 1] += (img.size[1] - old_size[1]) / 2
