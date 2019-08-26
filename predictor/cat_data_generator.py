@@ -9,7 +9,8 @@ import utils
 
 class CatDataGenerator(keras.utils.Sequence):
     def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
-                 flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0, crop=False,
+                 flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
+                 crop=False, crop_scale_balanced=False,
                  sampling_method_rotate='random', sampling_method_resize='random'):
         self.path = path
         self.batch_size = batch_size
@@ -21,6 +22,7 @@ class CatDataGenerator(keras.utils.Sequence):
         self.rotate_90 = rotate_90
         self.rotate_n = rotate_n
         self.crop = crop
+        self.crop_scale_balanced = crop_scale_balanced
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
 
@@ -58,6 +60,10 @@ class CatDataGenerator(keras.utils.Sequence):
 
             if self.crop:
                 bb_crop = self._sample_bounding_box(img.size, landmarks)
+                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+
+            if self.crop_scale_balanced:
+                bb_crop = self._sample_bounding_box_scale_balanced(landmarks)
                 img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
             img, landmarks = self._resize_img(img, landmarks, sampling_method=self.sampling_method_resize)
@@ -146,6 +152,39 @@ class CatDataGenerator(keras.utils.Sequence):
                    bb_crop_start_y,
                    bb_crop_start_x + bb_crop_size,
                    bb_crop_start_y + bb_crop_size]
+
+        return np.array(bb_crop)
+
+    def _sample_bounding_box_scale_balanced(self, landmarks):
+        """
+        Samples a bounding box for cropping so that the distribution of scales in the training data is uniform.
+        """
+
+        bb_min = 0.9
+        bb_old = CatDataGenerator.get_bounding_box(landmarks)
+        bb_old_shape = np.array((bb_old[2] - bb_old[0], bb_old[3] - bb_old[1]))
+        bb_old_size = np.max(bb_old_shape)
+        margin = (1 - bb_min) / 2
+        bb_old_min = np.round([bb_old[0] + bb_old_shape[0] * margin,
+                               bb_old[1] + bb_old_shape[1] * margin,
+                               bb_old[2] - bb_old_shape[0] * margin,
+                               bb_old[3] - bb_old_shape[1] * margin])
+
+        scale = np.random.random_sample() * 0.94 + 0.08
+        bb_crop_size = int(round(bb_old_size / scale))
+
+        bb_crop_start_x = np.random.random_integers(low=bb_old_min[2] - bb_crop_size,
+                                                    high=bb_old_min[0] + 1)
+        bb_crop_start_y = np.random.random_integers(low=bb_old_min[3] - bb_crop_size,
+                                                    high=bb_old_min[1] + 1)
+
+        bb_crop_end_x = bb_crop_start_x + bb_crop_size
+        bb_crop_end_y = bb_crop_start_y + bb_crop_size
+
+        bb_crop = [bb_crop_start_x,
+                   bb_crop_start_y,
+                   bb_crop_end_x,
+                   bb_crop_end_y]
 
         return np.array(bb_crop)
 

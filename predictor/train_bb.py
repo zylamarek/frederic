@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--units', default=128, type=int)
     parser.add_argument('--pooling', default='max', type=str, choices=['max', 'avg'])
     parser.add_argument('--learning_rate', default=0.001, type=float)
-    parser.add_argument('--epochs', default=100, type=int)
+    parser.add_argument('--epochs', default=150, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
     parser.add_argument('--ReduceLROnPlateau_factor', default=0.5, type=float)
     parser.add_argument('--ReduceLROnPlateau_patience', default=5, type=int)
@@ -29,6 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--rotate_90', action='store_true')
     parser.add_argument('--rotate_n', default=0, type=int)
     parser.add_argument('--crop', action='store_true')
+    parser.add_argument('--crop_scale_balanced', action='store_true')
     args = parser.parse_args()
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
@@ -42,11 +43,13 @@ if __name__ == '__main__':
     datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
                                      include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal,
                                      rotate=args.rotate, rotate_90=args.rotate_90, rotate_n=args.rotate_n,
-                                     crop=args.crop, sampling_method_resize='random')
+                                     crop=args.crop, crop_scale_balanced=args.crop_scale_balanced,
+                                     sampling_method_resize='random')
     test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
                                 include_landmarks=args.include_landmarks, flip_horizontal=False,
                                 rotate=False, rotate_90=False, rotate_n=0,
-                                crop=False, sampling_method_resize=Image.LANCZOS)
+                                crop=False, crop_scale_balanced=False,
+                                sampling_method_resize=Image.LANCZOS)
     path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     path_test = os.path.join(data_path, 'test')
