@@ -10,7 +10,7 @@ import utils
 class CatDataGenerator(keras.utils.Sequence):
     def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
                  flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
-                 crop=False, crop_scale_balanced=False,
+                 crop=False, crop_scale_balanced_black=False, crop_scale_balanced=False,
                  sampling_method_rotate='random', sampling_method_resize='random'):
         self.path = path
         self.batch_size = batch_size
@@ -22,6 +22,7 @@ class CatDataGenerator(keras.utils.Sequence):
         self.rotate_90 = rotate_90
         self.rotate_n = rotate_n
         self.crop = crop
+        self.crop_scale_balanced_black = crop_scale_balanced_black
         self.crop_scale_balanced = crop_scale_balanced
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
@@ -62,8 +63,12 @@ class CatDataGenerator(keras.utils.Sequence):
                 bb_crop = self._sample_bounding_box(img.size, landmarks)
                 img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
+            if self.crop_scale_balanced_black:
+                bb_crop = self._sample_bounding_box_scale_balanced_black(landmarks)
+                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+
             if self.crop_scale_balanced:
-                bb_crop = self._sample_bounding_box_scale_balanced(landmarks)
+                bb_crop = self._sample_bounding_box_scale_balanced(img.size, landmarks)
                 img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
             img, landmarks = self._resize_img(img, landmarks, sampling_method=self.sampling_method_resize)
@@ -155,7 +160,40 @@ class CatDataGenerator(keras.utils.Sequence):
 
         return np.array(bb_crop)
 
-    def _sample_bounding_box_scale_balanced(self, landmarks):
+    def _sample_bounding_box_scale_balanced(self, size, landmarks):
+        """
+        Samples a bounding box for cropping so that the distribution of scales in the training data
+        is close to uniform and there is much less black borders compared to
+        '_sample_bounding_box_scale_balanced_black' method. Works best (the distribution is closest to uniform)
+        when run with 'rotate_n' around 15-20 degrees.
+        """
+
+        bb_old = CatDataGenerator.get_bounding_box(landmarks)
+        bb_old_size = np.max((bb_old[2] - bb_old[0], bb_old[3] - bb_old[1]))
+
+        bb_size_min = bb_old_size
+        bb_size_max = 14 * bb_old_size
+
+        # Sample size of the new bounding box based on some statistic that works fine with this particular data
+        if np.random.random_sample() > 0.5:
+            val = np.random.beta(1.05, 30)
+        else:
+            val = 1 - np.random.beta(1, 10000)
+        bb_crop_size = int(bb_size_min + val * (bb_size_max - bb_size_min))
+
+        bb_crop_start_x = np.random.random_integers(low=np.max((0, bb_old[2] - bb_crop_size)),
+                                                    high=np.max((0, bb_old[0] + 1)))
+        bb_crop_start_y = np.random.random_integers(low=np.max((0, bb_old[3] - bb_crop_size)),
+                                                    high=np.max((0, bb_old[1] + 1)))
+
+        bb_crop = [bb_crop_start_x,
+                   bb_crop_start_y,
+                   np.min((bb_crop_start_x + bb_crop_size, size[0] - 1)),
+                   np.min((bb_crop_start_y + bb_crop_size, size[1] - 1))]
+
+        return np.array(bb_crop)
+
+    def _sample_bounding_box_scale_balanced_black(self, landmarks):
         """
         Samples a bounding box for cropping so that the distribution of scales in the training data is uniform.
         """
