@@ -4,7 +4,7 @@ import datetime
 import keras
 from keras.callbacks import TensorBoard, ModelCheckpoint, ReduceLROnPlateau, EarlyStopping
 from keras.applications import mobilenet_v2
-from keras.layers import Dense
+from keras.layers import Dense, Flatten
 from keras.models import Model, load_model
 from PIL import Image
 
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--hpsearch_file', default='hpsearch.csv', type=str)
     parser.add_argument('--units', default=128, type=int)
-    parser.add_argument('--pooling', default='max', type=str, choices=['max', 'avg'])
+    parser.add_argument('--pooling', default='max', type=str, choices=['max', 'avg', 'None'])
     parser.add_argument('--learning_rate', default=0.001, type=float)
     parser.add_argument('--epochs', default=150, type=int)
     parser.add_argument('--batch_size', default=32, type=int)
@@ -32,6 +32,8 @@ if __name__ == '__main__':
     parser.add_argument('--crop_scale_balanced_black', action='store_true')
     parser.add_argument('--crop_scale_balanced', action='store_true')
     args = parser.parse_args()
+    if args.pooling == 'None':
+        args.pooling = None
 
     data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
 
@@ -58,8 +60,11 @@ if __name__ == '__main__':
     path_test = os.path.join(data_path, 'test')
     datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
-    pretrained_net = mobilenet_v2.MobileNetV2(include_top=False, pooling=args.pooling)
-    outp = Dense(args.units, activation='relu')(pretrained_net.output)
+    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.img_shape, include_top=False, pooling=args.pooling)
+    outp = pretrained_net.output
+    if args.pooling is None:
+        outp = Flatten()(outp)
+    outp = Dense(args.units, activation='relu')(outp)
     outp = Dense(args.units, activation='relu')(outp)
     outp = Dense(datagen_train.output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
