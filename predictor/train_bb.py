@@ -125,7 +125,7 @@ if __name__ == '__main__':
 
     try:
         iter(test_eval)
-    except AttributeError:
+    except TypeError:
         test_eval = [test_eval]
     test_metrics = {('test_%s' % k): v for k, v in zip(model.metrics_names, test_eval)}
     print(test_metrics)
