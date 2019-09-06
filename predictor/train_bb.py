@@ -13,6 +13,7 @@ import utils
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--output_type', default='bbox', type=str, choices=['bbox', 'landmarks'])
     parser.add_argument('--hpsearch_file', default='hpsearch.csv', type=str)
     parser.add_argument('--units', default=128, type=int)
     parser.add_argument('--pooling', default='max', type=str, choices=['max', 'avg', 'None'])
@@ -43,21 +44,39 @@ if __name__ == '__main__':
     model_path = os.path.join('models', '%s.h5' % exp_name)
 
     path_train = os.path.join(data_path, 'training')
-    datagen_train = CatDataGenerator(path=path_train, shuffle=True, batch_size=args.batch_size,
-                                     include_landmarks=args.include_landmarks, flip_horizontal=args.flip_horizontal,
-                                     rotate=args.rotate, rotate_90=args.rotate_90, rotate_n=args.rotate_n,
-                                     crop=args.crop, crop_scale_balanced_black=args.crop_scale_balanced_black,
+    if args.output_type == 'bbox':
+        path_val = os.path.join(data_path, 'validation')
+        path_test = os.path.join(data_path, 'test')
+    else:
+        path_val = os.path.join(data_path, 'landmarks_validation')
+        path_test = os.path.join(data_path, 'landmarks_test')
+
+    datagen_train = CatDataGenerator(path=path_train,
+                                     output_type=args.output_type,
+                                     include_landmarks=args.include_landmarks,
+                                     batch_size=args.batch_size,
+                                     shuffle=True,
+                                     flip_horizontal=args.flip_horizontal,
+                                     rotate=args.rotate,
+                                     rotate_90=args.rotate_90,
+                                     rotate_n=args.rotate_n,
+                                     crop=args.crop,
+                                     crop_scale_balanced_black=args.crop_scale_balanced_black,
                                      crop_scale_balanced=args.crop_scale_balanced,
                                      sampling_method_resize='random')
-    test_validation_args = dict(shuffle=False, batch_size=args.batch_size,
-                                include_landmarks=args.include_landmarks, flip_horizontal=False,
-                                rotate=False, rotate_90=False, rotate_n=0,
-                                crop=False, crop_scale_balanced_black=False,
+    test_validation_args = dict(output_type=args.output_type,
+                                include_landmarks=args.include_landmarks,
+                                batch_size=args.batch_size,
+                                shuffle=False,
+                                flip_horizontal=False,
+                                rotate=False,
+                                rotate_90=False,
+                                rotate_n=0,
+                                crop=False,
+                                crop_scale_balanced_black=False,
                                 crop_scale_balanced=False,
                                 sampling_method_resize=Image.LANCZOS)
-    path_val = os.path.join(data_path, 'validation')
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
-    path_test = os.path.join(data_path, 'test')
     datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
     pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.img_shape, include_top=False, pooling=args.pooling)
@@ -69,16 +88,22 @@ if __name__ == '__main__':
     outp = Dense(datagen_train.output_dim, activation='linear')(outp)
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
-    if args.loss_fn in ('iou', 'iou_and_mse_landmarks'):
+    if args.loss_fn in ('iou', 'iou_and_mse_landmarks') and args.output_type == 'bbox':
         # pretrain using mse loss for stability
         model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[utils.iou])
         model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50, workers=3)
 
-    loss_fn = utils.get_loss_fn(args.loss_fn, args.iou_and_mse_landmarks_ratio)
-    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=[utils.iou, 'mse'])
+    if args.output_type == 'bbox':
+        metrics = [utils.iou, 'mse']
+        monitor, mode = 'val_iou', 'max'
+    else:
+        metrics = []
+        monitor, mode = 'val_loss', 'min'
+    loss_fn = utils.get_loss_fn(args.output_type, args.loss_fn, args.iou_and_mse_landmarks_ratio)
+
+    model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=metrics)
     model.summary()
 
-    monitor, mode = 'val_iou', 'max'
     train_history = model.fit_generator(generator=datagen_train, epochs=args.epochs, shuffle=True,
                                         validation_data=datagen_val, workers=3,
                                         callbacks=[

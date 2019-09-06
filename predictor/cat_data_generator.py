@@ -8,14 +8,15 @@ import utils
 
 
 class CatDataGenerator(keras.utils.Sequence):
-    def __init__(self, path, batch_size=64, shuffle=True, include_landmarks=False,
+    def __init__(self, path, output_type, include_landmarks=False, batch_size=64, shuffle=True,
                  flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
                  crop=False, crop_scale_balanced_black=False, crop_scale_balanced=False,
                  sampling_method_rotate='random', sampling_method_resize='random'):
         self.path = path
+        self.output_type = output_type
+        self.include_landmarks = include_landmarks
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.include_landmarks = include_landmarks
 
         self.flip_horizontal = flip_horizontal
         self.rotate = rotate
@@ -27,11 +28,14 @@ class CatDataGenerator(keras.utils.Sequence):
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
 
-        self.output_dim = 4
-        if self.include_landmarks:
-            self.output_dim += 10
+        if self.output_type == 'bbox':
+            self.output_dim = 4
+            if self.include_landmarks:
+                self.output_dim += 10
+        else:
+            self.output_dim = 10
 
-        self.files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.jpg')]
+        self.files = [os.path.join(path, f) for f in os.listdir(path) if f[-4:] in ('.jpg', '.bmp', '.gif', '.png')]
         self.indexes = np.arange(len(self.files))
 
         self.on_epoch_end()
@@ -59,17 +63,22 @@ class CatDataGenerator(keras.utils.Sequence):
                 angle = self.rotate_n * (2. * np.random.random_sample() - 1.)
                 img, landmarks = self._rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
 
-            if self.crop:
-                bb_crop = self._sample_bounding_box(img.size, landmarks)
-                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+            if self.output_type == 'bbox':
+                if self.crop:
+                    bb_crop = self._sample_bounding_box(img.size, landmarks)
+                    img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
-            if self.crop_scale_balanced_black:
-                bb_crop = self._sample_bounding_box_scale_balanced_black(landmarks)
-                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+                if self.crop_scale_balanced_black:
+                    bb_crop = self._sample_bounding_box_scale_balanced_black(landmarks)
+                    img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
-            if self.crop_scale_balanced:
-                bb_crop = self._sample_bounding_box_scale_balanced(img.size, landmarks)
-                img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+                if self.crop_scale_balanced:
+                    bb_crop = self._sample_bounding_box_scale_balanced(img.size, landmarks)
+                    img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
+            else:
+                if self.crop:
+                    bb_crop = self._sample_bounding_box_landmarks(landmarks)
+                    img, landmarks = self._crop_bounding_box(img, landmarks, bb_crop)
 
             img, landmarks = self._resize_img(img, landmarks, sampling_method=self.sampling_method_resize)
 
@@ -79,10 +88,13 @@ class CatDataGenerator(keras.utils.Sequence):
             landmarks = np.round(landmarks).astype('int')
             bounding_box = self.get_bounding_box(landmarks)
 
-            if self.include_landmarks:
-                y[i] = np.concatenate((bounding_box, landmarks.flatten()))
+            if self.output_type == 'bbox':
+                if self.include_landmarks:
+                    y[i] = np.concatenate((bounding_box, landmarks.flatten()))
+                else:
+                    y[i] = bounding_box
             else:
-                y[i] = bounding_box
+                y[i] = landmarks.flatten()
             x[i] = np.asarray(img)
 
         x = mobilenet_v2.preprocess_input(x)
@@ -225,6 +237,33 @@ class CatDataGenerator(keras.utils.Sequence):
                    bb_crop_end_y]
 
         return np.array(bb_crop)
+
+    def _sample_bounding_box_landmarks(self, landmarks, margin=0.1, random_margin=0.1):
+        """
+        Samples a bounding box for cropping in landmark prediction training. It takes the ground truth bounding box
+        and increases it by 'margin' on each side. Then it samples +- 'random_margin' on each side to simulate
+        errors made by the bounding box prediction algorithm. The bounding box is extended to a square, while
+        preserving position of the center.
+        """
+
+        bb = self.get_bounding_box(landmarks)
+        margins = 2 * random_margin * np.random.random_sample(size=4) - random_margin + margin
+
+        bb_size = np.max((bb[2] - bb[0], bb[3] - bb[1]))
+        margins *= bb_size
+        bb_crop = [bb[0] - margins[0],
+                   bb[1] - margins[1],
+                   bb[2] + margins[2],
+                   bb[3] + margins[3]]
+
+        bb_crop_size = np.max((bb_crop[2] - bb_crop[0], bb_crop[3] - bb_crop[1]))
+        bb_crop_center = [(bb_crop[2] + bb_crop[0]) / 2, (bb_crop[3] + bb_crop[1]) / 2]
+        bb_crop = [bb_crop_center[0] - bb_crop_size / 2,
+                   bb_crop_center[1] - bb_crop_size / 2,
+                   bb_crop_center[0] + bb_crop_size / 2,
+                   bb_crop_center[1] + bb_crop_size / 2]
+
+        return np.round(bb_crop).astype('int')
 
     @staticmethod
     def _crop_bounding_box(img, landmarks, bounding_box):

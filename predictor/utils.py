@@ -6,7 +6,12 @@ img_size = 224
 img_shape = (img_size, img_size, 3)
 
 
-def get_loss_fn(name, iou_and_mse_landmarks_ratio=None):
+def get_loss_fn(output_type, name, iou_and_mse_landmarks_ratio=None):
+    if output_type == 'landmarks':
+        if not name == 'mse':
+            print('Loss_fn "%s" not available in landmarks training. Forcing loss_fn to be "mse".' % name)
+        return 'mse'
+
     loss_fn_map = {'mse': 'mse',
                    'iou': iou_loss}
 
