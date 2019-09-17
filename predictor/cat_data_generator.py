@@ -48,49 +48,13 @@ class CatDataGenerator(keras.utils.Sequence):
         y = np.zeros((len(indexes), self.output_dim))
 
         for i, idx in enumerate(indexes):
-            img_file = self.files[idx]
-            img = Image.open(img_file)
-            with open(img_file + '.cat', 'r') as cat:
-                landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
-
-            if self.rotate:
-                angle = 360 * np.random.random_sample()
-                img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
-
-            if self.rotate_90:
-                angle = np.random.choice([0, 90, 180, 270])
-                img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
-
-            if self.rotate_n > 0:
-                angle = self.rotate_n * (2. * np.random.random_sample() - 1.)
-                img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
-
-            if self.output_type == 'bbox':
-                if self.crop:
-                    bb_crop = utils.sampling.sample_bounding_box(img.size, landmarks)
-                    img, landmarks = utils.image.crop(img, landmarks, bb_crop)
-
-                if self.crop_scale_balanced_black:
-                    bb_crop = utils.sampling.sample_bounding_box_scale_balanced_black(landmarks)
-                    img, landmarks = utils.image.crop(img, landmarks, bb_crop)
-
-                if self.crop_scale_balanced:
-                    bb_crop = utils.sampling.sample_bounding_box_scale_balanced(img.size, landmarks)
-                    img, landmarks = utils.image.crop(img, landmarks, bb_crop)
-            else:
-                if self.crop:
-                    bb_crop = utils.sampling.sample_bounding_box_landmarks(landmarks)
-                    img, landmarks = utils.image.crop(img, landmarks, bb_crop)
-
+            img, landmarks = self._get_img(idx)
+            img, landmarks = self._augment(img, landmarks)
             img, landmarks = utils.image.resize(img, landmarks, sampling_method=self.sampling_method_resize)
-
-            if self.flip_horizontal and np.random.random_sample() > 0.5:
-                img, landmarks = utils.image.flip(img, landmarks)
-
             landmarks = np.round(landmarks).astype('int')
-            bounding_box = utils.general.get_bounding_box(landmarks)
 
             if self.output_type == 'bbox':
+                bounding_box = utils.general.get_bounding_box(landmarks)
                 if self.include_landmarks:
                     y[i] = np.concatenate((bounding_box, landmarks.flatten()))
                 else:
@@ -102,6 +66,48 @@ class CatDataGenerator(keras.utils.Sequence):
         x = mobilenet_v2.preprocess_input(x)
 
         return x, y
+
+    def _get_img(self, idx):
+        img_file = self.files[idx]
+        img = Image.open(img_file)
+        with open(img_file + '.cat', 'r') as cat:
+            landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
+        return img, landmarks
+
+    def _augment(self, img, landmarks):
+        if self.rotate:
+            angle = 360 * np.random.random_sample()
+            img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
+
+        if self.rotate_90:
+            angle = np.random.choice([0, 90, 180, 270])
+            img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
+
+        if self.rotate_n > 0:
+            angle = self.rotate_n * (2. * np.random.random_sample() - 1.)
+            img, landmarks = utils.image.rotate(img, landmarks, angle, sampling_method=self.sampling_method_rotate)
+
+        if self.output_type == 'bbox':
+            if self.crop:
+                bb_crop = utils.sampling.sample_bounding_box(img.size, landmarks)
+                img, landmarks = utils.image.crop(img, landmarks, bb_crop)
+
+            if self.crop_scale_balanced_black:
+                bb_crop = utils.sampling.sample_bounding_box_scale_balanced_black(landmarks)
+                img, landmarks = utils.image.crop(img, landmarks, bb_crop)
+
+            if self.crop_scale_balanced:
+                bb_crop = utils.sampling.sample_bounding_box_scale_balanced(img.size, landmarks)
+                img, landmarks = utils.image.crop(img, landmarks, bb_crop)
+        else:
+            if self.crop:
+                bb_crop = utils.sampling.sample_bounding_box_landmarks(landmarks)
+                img, landmarks = utils.image.crop(img, landmarks, bb_crop)
+
+        if self.flip_horizontal and np.random.random_sample() > 0.5:
+            img, landmarks = utils.image.flip(img, landmarks)
+
+        return img, landmarks
 
     def __len__(self):
         return int(np.ceil(len(self.files) / self.batch_size))
