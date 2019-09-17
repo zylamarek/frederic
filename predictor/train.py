@@ -9,7 +9,7 @@ from keras.models import Model, load_model
 from PIL import Image
 
 from cat_data_generator import CatDataGenerator
-import utils
+import utils.general
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -79,7 +79,8 @@ if __name__ == '__main__':
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
-    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.img_shape, include_top=False, pooling=args.pooling)
+    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.general.img_shape, include_top=False,
+                                              pooling=args.pooling)
     outp = pretrained_net.output
     if args.pooling is None:
         outp = Flatten()(outp)
@@ -89,17 +90,17 @@ if __name__ == '__main__':
     model = Model(inputs=pretrained_net.input, outputs=outp)
 
     if args.loss_fn in ('iou', 'iou_and_mse_landmarks') and args.output_type == 'bbox':
-        # pretrain using mse loss for stability
-        model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[utils.iou])
+        # Pretrain using mse loss for stability. IOU based losses easily explode in the beginning of the training.
+        model.compile(optimizer=keras.optimizers.Adam(), loss='mse', metrics=[utils.general.iou])
         model.fit_generator(generator=datagen_train, epochs=1, shuffle=True, steps_per_epoch=50, workers=3)
 
     if args.output_type == 'bbox':
-        metrics = [utils.iou, 'mse']
+        metrics = [utils.general.iou, 'mse']
         monitor, mode = 'val_iou', 'max'
     else:
         metrics = []
         monitor, mode = 'val_loss', 'min'
-    loss_fn = utils.get_loss_fn(args.output_type, args.loss_fn, args.iou_and_mse_landmarks_ratio)
+    loss_fn = utils.general.get_loss_fn(args.output_type, args.loss_fn, args.iou_and_mse_landmarks_ratio)
 
     model.compile(optimizer=keras.optimizers.Adam(lr=args.learning_rate), loss=loss_fn, metrics=metrics)
     model.summary()
@@ -119,7 +120,7 @@ if __name__ == '__main__':
                                         )
 
     print('Testing...')
-    custom_objects = utils.get_custom_objects(args.loss_fn, loss_fn)
+    custom_objects = utils.general.get_custom_objects(args.loss_fn, loss_fn)
     model = load_model(model_path, custom_objects=custom_objects)
     test_eval = model.evaluate_generator(datagen_test, verbose=1)
 
@@ -130,5 +131,5 @@ if __name__ == '__main__':
     test_metrics = {('test_%s' % k): v for k, v in zip(model.metrics_names, test_eval)}
     print(test_metrics)
 
-    utils.append_hp_result(path=args.hpsearch_file, exp_name=exp_name, args=vars(args), history=train_history.history,
-                           test_metrics=test_metrics, monitor=monitor, mode=mode)
+    utils.general.append_hp_result(path=args.hpsearch_file, exp_name=exp_name, args=vars(args),
+                                   history=train_history.history, test_metrics=test_metrics, monitor=monitor, mode=mode)

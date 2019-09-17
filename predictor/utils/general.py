@@ -99,3 +99,7 @@ def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode)
     with open(path, 'a') as f:
         csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
         csv_writer.writerow(row)
+
+
+def get_bounding_box(landmarks):
+    return np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
