@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 
 .idea/
-predictor/data/
-predictor/logs/
-predictor/models/
+frederic/data/
+frederic/logs/
+frederic/models/
+frederic/tmp/
