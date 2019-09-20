@@ -1,3 +1,3 @@
 #!/bin/bash
 
-source activate cat-face-landmark-predictor
+source activate frederic-dev

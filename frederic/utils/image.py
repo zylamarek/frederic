@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 
-import utils.general
+from . import general
 
 
 def rotate(img, landmarks, angle, expand=True, sampling_method='random'):
@@ -38,17 +38,17 @@ def rotate(img, landmarks, angle, expand=True, sampling_method='random'):
 
 def resize(img, landmarks, sampling_method='random'):
     old_size = img.size
-    if old_size != (utils.general.img_size, utils.general.img_size):
-        ratio = float(utils.general.img_size) / max(old_size)
+    if old_size != (general.img_size, general.img_size):
+        ratio = float(general.img_size) / max(old_size)
         new_size = tuple([int(x * ratio) for x in old_size])
         if sampling_method == 'random':
             sampling_method = np.random.choice([Image.NEAREST, Image.BOX, Image.BILINEAR, Image.HAMMING,
                                                 Image.BICUBIC, Image.LANCZOS])
         old_img = img.resize(new_size, sampling_method)
 
-        img = Image.new('RGB', (utils.general.img_size, utils.general.img_size))
-        x_diff = (utils.general.img_size - new_size[0]) // 2
-        y_diff = (utils.general.img_size - new_size[1]) // 2
+        img = Image.new('RGB', (general.img_size, general.img_size))
+        x_diff = (general.img_size - new_size[0]) // 2
+        y_diff = (general.img_size - new_size[1]) // 2
         img.paste(old_img, (x_diff, y_diff))
 
         landmarks *= ratio
