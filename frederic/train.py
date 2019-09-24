@@ -79,7 +79,7 @@ if __name__ == '__main__':
     datagen_val = CatDataGenerator(path=path_val, **test_validation_args)
     datagen_test = CatDataGenerator(path=path_test, **test_validation_args)
 
-    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.general.img_shape, include_top=False,
+    pretrained_net = mobilenet_v2.MobileNetV2(input_shape=utils.general.IMG_SHAPE, include_top=False,
                                               pooling=args.pooling)
     outp = pretrained_net.output
     if args.pooling is None:

@@ -2,7 +2,6 @@ import numpy as np
 import keras
 from keras.applications import mobilenet_v2
 import os
-from PIL import Image
 
 import utils.general
 import utils.image
@@ -44,17 +43,17 @@ class CatDataGenerator(keras.utils.Sequence):
 
     def __getitem__(self, index):
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
-        x = np.zeros((len(indexes),) + utils.general.img_shape)
+        x = np.zeros((len(indexes),) + utils.general.IMG_SHAPE)
         y = np.zeros((len(indexes), self.output_dim))
 
         for i, idx in enumerate(indexes):
-            img, landmarks = self._get_img(idx)
+            img, landmarks = utils.image.load(self.files[idx])
             img, landmarks = self._augment(img, landmarks)
             img, landmarks = utils.image.resize(img, landmarks, sampling_method=self.sampling_method_resize)
             landmarks = np.round(landmarks).astype('int')
 
             if self.output_type == 'bbox':
-                bounding_box = utils.general.get_bounding_box(landmarks)
+                bounding_box = utils.image.get_bounding_box(landmarks)
                 if self.include_landmarks:
                     y[i] = np.concatenate((bounding_box, landmarks.flatten()))
                 else:
@@ -66,13 +65,6 @@ class CatDataGenerator(keras.utils.Sequence):
         x = mobilenet_v2.preprocess_input(x)
 
         return x, y
-
-    def _get_img(self, idx):
-        img_file = self.files[idx]
-        img = Image.open(img_file)
-        with open(img_file + '.cat', 'r') as cat:
-            landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
-        return img, landmarks
 
     def _augment(self, img, landmarks):
         if self.rotate:

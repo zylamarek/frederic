@@ -2,8 +2,13 @@ import keras.backend as K
 import csv
 import numpy as np
 
-img_size = 224
-img_shape = (img_size, img_size, 3)
+IMG_SIZE = 224
+IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
+L_EYE_LEFT = 0
+L_EYE_RIGHT = 1
+L_MOUTH = 2
+L_EAR_LEFT = 3
+L_EAR_RIGHT = 4
 
 
 def get_loss_fn(output_type, name, iou_and_mse_landmarks_ratio=None):
@@ -99,7 +104,3 @@ def append_hp_result(path, exp_name, args, history, test_metrics, monitor, mode)
     with open(path, 'a') as f:
         csv_writer = csv.writer(f, delimiter=';', lineterminator='\n')
         csv_writer.writerow(row)
-
-
-def get_bounding_box(landmarks):
-    return np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])

@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import general
+from . import image
 
 
 def sample_bounding_box(size, landmarks, margin=0.1, bb_min=0.8):
@@ -10,7 +10,7 @@ def sample_bounding_box(size, landmarks, margin=0.1, bb_min=0.8):
     """
 
     # Get old bounding box limited by the size of the image
-    bb_old = general.get_bounding_box(landmarks)
+    bb_old = image.get_bounding_box(landmarks)
     bb_old = [np.max((0, bb_old[0])),
               np.max((0, bb_old[1])),
               np.min((size[0] - 1, bb_old[2])),
@@ -50,7 +50,7 @@ def sample_bounding_box_scale_balanced(size, landmarks):
     when run with 'rotate_n' around 15-20 degrees.
     """
 
-    bb_old = general.get_bounding_box(landmarks)
+    bb_old = image.get_bounding_box(landmarks)
     bb_old_size = np.max((bb_old[2] - bb_old[0], bb_old[3] - bb_old[1]))
 
     bb_size_min = bb_old_size
@@ -82,7 +82,7 @@ def sample_bounding_box_scale_balanced_black(landmarks):
     """
 
     bb_min = 0.9
-    bb_old = general.get_bounding_box(landmarks)
+    bb_old = image.get_bounding_box(landmarks)
     bb_old_shape = np.array((bb_old[2] - bb_old[0], bb_old[3] - bb_old[1]))
     bb_old_size = np.max(bb_old_shape)
     margin = (1 - bb_min) / 2
@@ -118,7 +118,7 @@ def sample_bounding_box_landmarks(landmarks, margin=0.1, random_margin=0.1):
     preserving position of the center.
     """
 
-    bb = general.get_bounding_box(landmarks)
+    bb = image.get_bounding_box(landmarks)
     margins = 2 * random_margin * np.random.random_sample(size=4) - random_margin + margin
 
     bb_size = np.max((bb[2] - bb[0], bb[3] - bb[1]))
