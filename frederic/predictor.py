@@ -7,18 +7,17 @@ from keras.utils.data_utils import get_file
 import frederic.utils.general
 import frederic.utils.image
 
-BASE_MODEL_URL = 'https://docs.google.com/uc?export=download&id='
-BBOX_MODEL_ID = '1I3ABL4Ykg5e_mnt0-yN2MahJ5TK8Onyt'
-LANDMARKS_MODEL_ID = '11LGQoVWsxn1gq3CRQbWLXzDP0vWKWB72'
+BASE_MODEL_URL = 'https://github.com/zylamarek/frederic-models/raw/master/models/'
 
 
 class Predictor:
     def __init__(self, bbox_model_path=None, landmarks_model_path=None):
         if bbox_model_path is None:
-            bbox_model_path = get_file('frederic_bbox.h5', BASE_MODEL_URL + BBOX_MODEL_ID, cache_subdir='models')
+            model_name = 'frederic_bbox.h5'
+            bbox_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
         if landmarks_model_path is None:
-            landmarks_model_path = get_file('frederic_landmarks.h5', BASE_MODEL_URL + LANDMARKS_MODEL_ID,
-                                            cache_subdir='models')
+            model_name = 'frederic_landmarks.h5'
+            landmarks_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
 
         dummy_loss_fn = frederic.utils.general.get_loss_fn('bbox', 'iou_and_mse_landmarks', 1e-5)
         custom_objects = frederic.utils.general.get_custom_objects('iou_and_mse_landmarks', dummy_loss_fn)
