@@ -11,20 +11,33 @@ BASE_MODEL_URL = 'https://github.com/zylamarek/frederic-models/raw/master/models
 
 
 class Predictor:
-    def __init__(self, bbox_model_path=None, landmarks_model_path=None):
-        if bbox_model_path is None:
-            model_name = 'frederic_bbox.h5'
-            bbox_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
-        if landmarks_model_path is None:
-            model_name = 'frederic_landmarks.h5'
-            landmarks_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
+    def __init__(self, bbox_model_path=None, landmarks_model_path=None, lazy=True):
+        self.bbox_model_path = bbox_model_path
+        self.landmarks_model_path = landmarks_model_path
+        self.lazy = lazy
+        self.loaded = False
 
-        dummy_loss_fn = frederic.utils.general.get_loss_fn('bbox', 'iou_and_mse_landmarks', 1e-5)
-        custom_objects = frederic.utils.general.get_custom_objects('iou_and_mse_landmarks', dummy_loss_fn)
-        self.bbox_model = load_model(bbox_model_path, custom_objects=custom_objects)
-        self.landmarks_model = load_model(landmarks_model_path, custom_objects=custom_objects)
+        if not lazy:
+            self.load_models()
+
+    def load_models(self):
+        if not self.loaded:
+            if self.bbox_model_path is None:
+                model_name = 'frederic_bbox.h5'
+                self.bbox_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
+            if self.landmarks_model_path is None:
+                model_name = 'frederic_landmarks.h5'
+                self.landmarks_model_path = get_file(model_name, BASE_MODEL_URL + model_name, cache_subdir='models')
+
+            dummy_loss_fn = frederic.utils.general.get_loss_fn('bbox', 'iou_and_mse_landmarks', 1e-5)
+            custom_objects = frederic.utils.general.get_custom_objects('iou_and_mse_landmarks', dummy_loss_fn)
+            self.bbox_model = load_model(self.bbox_model_path, custom_objects=custom_objects)
+            self.landmarks_model = load_model(self.landmarks_model_path, custom_objects=custom_objects)
+
+            self.loaded = True
 
     def predict(self, img, dtype='float'):
+        self.load_models()
         img_bbox, img_landmarks = img.copy(), img.copy()
 
         # predict bounding box
