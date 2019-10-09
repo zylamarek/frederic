@@ -18,7 +18,7 @@ def load_landmarks(path):
 
 def save_landmarks(landmarks, path):
     with open(path, 'w') as cat:
-        cat.write(' '.join([str(int(landmarks.shape[0]))] + [str(int(l)) for l in landmarks.flatten()]))
+        cat.write(' '.join([str(int(landmarks.shape[0]))] + [str(l) for l in landmarks.flatten()]))
 
 
 def get_bounding_box(landmarks):

@@ -24,7 +24,7 @@ class Predictor:
         self.bbox_model = load_model(bbox_model_path, custom_objects=custom_objects)
         self.landmarks_model = load_model(landmarks_model_path, custom_objects=custom_objects)
 
-    def predict(self, img):
+    def predict(self, img, dtype='float'):
         img_bbox, img_landmarks = img.copy(), img.copy()
 
         # predict bounding box
@@ -46,7 +46,10 @@ class Predictor:
         ratio = bb_size / frederic.utils.general.IMG_SIZE
         predicted_landmarks = (y_pred * ratio).reshape((-1, 2)) + bbox[:2]
 
-        return predicted_landmarks
+        if 'int' in dtype:
+            predicted_landmarks = np.round(predicted_landmarks)
+        return predicted_landmarks.astype(dtype)
 
-    def save_landmarks(self, landmarks, path):
+    @staticmethod
+    def save_landmarks(landmarks, path):
         frederic.utils.image.save_landmarks(landmarks, path)
