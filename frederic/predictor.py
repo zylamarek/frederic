@@ -47,3 +47,6 @@ class Predictor:
         predicted_landmarks = (y_pred * ratio).reshape((-1, 2)) + bbox[:2]
 
         return predicted_landmarks
+
+    def save_landmarks(self, landmarks, path):
+        frederic.utils.image.save_landmarks(landmarks, path)

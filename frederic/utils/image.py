@@ -16,6 +16,11 @@ def load_landmarks(path):
     return landmarks
 
 
+def save_landmarks(landmarks, path):
+    with open(path, 'w') as cat:
+        cat.write(' '.join([str(int(landmarks.shape[0]))] + [str(int(l)) for l in landmarks.flatten()]))
+
+
 def get_bounding_box(landmarks):
     return np.concatenate([np.min(landmarks, axis=0), np.max(landmarks, axis=0)])
 

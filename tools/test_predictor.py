@@ -41,6 +41,7 @@ if __name__ == '__main__':
         output_filename = '%.9f_%s' % (np.sqrt(mse), img_filename)
         output_path = os.path.join(output_dir, output_filename)
         frederic.utils.image.save_with_landmarks(img, landmarks_truth, landmarks_predicted, output_path)
+        predictor.save_landmarks(landmarks_predicted, output_path + '.cat')
 
     for name, vals in mses.items():
         print('rmse %s: %.7f' % (name, np.sqrt(np.mean(vals))))
