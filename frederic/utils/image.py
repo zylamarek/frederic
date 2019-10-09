@@ -6,9 +6,14 @@ from .general import IMG_SIZE, L_EYE_LEFT, L_EYE_RIGHT, L_MOUTH, L_EAR_LEFT, L_E
 
 def load(path):
     img = Image.open(path)
-    with open(path + '.cat', 'r') as cat:
-        landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
+    landmarks = load_landmarks(path + '.cat')
     return img, landmarks
+
+
+def load_landmarks(path):
+    with open(path, 'r') as cat:
+        landmarks = np.array([float(i) for i in cat.readline().split()[1:]]).reshape((-1, 2))
+    return landmarks
 
 
 def get_bounding_box(landmarks):
