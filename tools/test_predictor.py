@@ -33,10 +33,10 @@ if __name__ == '__main__':
 
         mse = np.mean(np.square(landmarks_truth - landmarks_predicted))
         mses['all'].append(mse)
-        mses['all normalized'].append(get_mse_normalized(L_EYE_LEFT, L_EAR_RIGHT))
-        mses['eyes normalized'].append(get_mse_normalized(L_EYE_LEFT, L_EYE_RIGHT))
+        mses['all normalized'].append(get_mse_normalized(L_EYE_RIGHT, L_EAR_LEFT))
+        mses['eyes normalized'].append(get_mse_normalized(L_EYE_RIGHT, L_EYE_LEFT))
         mses['mouth normalized'].append(get_mse_normalized(L_MOUTH, L_MOUTH))
-        mses['ears normalized'].append(get_mse_normalized(L_EAR_LEFT, L_EAR_RIGHT))
+        mses['ears normalized'].append(get_mse_normalized(L_EAR_RIGHT, L_EAR_LEFT))
 
         output_filename = '%.9f_%s' % (np.sqrt(mse), img_filename)
         output_path = os.path.join(output_dir, output_filename)
