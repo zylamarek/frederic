@@ -4,11 +4,11 @@ import numpy as np
 
 IMG_SIZE = 224
 IMG_SHAPE = (IMG_SIZE, IMG_SIZE, 3)
-L_EYE_LEFT = 0
-L_EYE_RIGHT = 1
+L_EYE_RIGHT = 0
+L_EYE_LEFT = 1
 L_MOUTH = 2
-L_EAR_LEFT = 3
-L_EAR_RIGHT = 4
+L_EAR_RIGHT = 3
+L_EAR_LEFT = 4
 
 
 def get_loss_fn(output_type, name, iou_and_mse_landmarks_ratio=None):
