@@ -14,6 +14,7 @@ import frederic.utils.general
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', default=os.path.join('..', '..', 'cat-dataset', 'data', 'clean'))
     parser.add_argument('--output_type', default='bbox', type=str, choices=['bbox', 'landmarks'])
     parser.add_argument('--hpsearch_file', default='hpsearch.csv', type=str)
     parser.add_argument('--units', default=128, type=int)
@@ -37,20 +38,18 @@ if __name__ == '__main__':
     if args.pooling == 'None':
         args.pooling = None
 
-    data_path = os.path.join('..', '..', 'cat-dataset', 'data', 'clean')
-
     exp_name = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
     exp_name += '_%s' % args.loss_fn
     os.makedirs('models', exist_ok=True)
     model_path = os.path.join('models', '%s.h5' % exp_name)
 
-    path_train = os.path.join(data_path, 'training')
+    path_train = os.path.join(args.data_path, 'training')
     if args.output_type == 'bbox':
-        path_val = os.path.join(data_path, 'validation')
-        path_test = os.path.join(data_path, 'test')
+        path_val = os.path.join(args.data_path, 'validation')
+        path_test = os.path.join(args.data_path, 'test')
     else:
-        path_val = os.path.join(data_path, 'landmarks_validation')
-        path_test = os.path.join(data_path, 'landmarks_test')
+        path_val = os.path.join(args.data_path, 'landmarks_validation')
+        path_test = os.path.join(args.data_path, 'landmarks_test')
 
     datagen_train = CatDataGenerator(path=path_train,
                                      output_type=args.output_type,
