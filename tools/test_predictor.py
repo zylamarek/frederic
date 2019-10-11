@@ -6,7 +6,7 @@ import datetime
 from collections import defaultdict
 
 import context
-from frederic.predictor import Predictor
+from frederic import Predictor
 import frederic.utils.image
 from frederic.utils.general import L_EYE_LEFT, L_EYE_RIGHT, L_MOUTH, L_EAR_LEFT, L_EAR_RIGHT
 
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     predictor = Predictor()
 
     output_dir = os.path.join('output', datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S"))
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_dir)
 
     mses = defaultdict(list)
     for img_filename in tqdm([f for f in os.listdir(args.data_path) if f[-4:] in ('.jpg', '.bmp', '.gif', '.png')]):

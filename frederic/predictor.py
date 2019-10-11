@@ -16,6 +16,8 @@ class Predictor:
         self.landmarks_model_path = landmarks_model_path
         self.lazy = lazy
         self.loaded = False
+        self.bbox_model = None
+        self.landmarks_model = None
 
         if not lazy:
             self.load_models()
@@ -62,7 +64,3 @@ class Predictor:
         if 'int' in dtype:
             predicted_landmarks = np.round(predicted_landmarks)
         return predicted_landmarks.astype(dtype)
-
-    @staticmethod
-    def save_landmarks(landmarks, path):
-        frederic.utils.image.save_landmarks(landmarks, path)

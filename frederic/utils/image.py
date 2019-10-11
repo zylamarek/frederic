@@ -5,9 +5,13 @@ from .general import IMG_SIZE, L_EYE_LEFT, L_EYE_RIGHT, L_MOUTH, L_EAR_LEFT, L_E
 
 
 def load(path):
-    img = Image.open(path)
+    img = load_image(path)
     landmarks = load_landmarks(path + '.cat')
     return img, landmarks
+
+
+def load_image(path):
+    return Image.open(path)
 
 
 def load_landmarks(path):
@@ -122,29 +126,34 @@ def crop(img, landmarks, bounding_box):
     return img, landmarks
 
 
-def save_with_landmarks(img, landmarks_truth, landmarks_predicted, path):
+def draw_landmarks(img, landmarks, color='yellow', lines=True, lines_color='green', width=2):
     draw = ImageDraw.Draw(img)
-    width = 2
     fnt = ImageFont.truetype("arial.ttf", 16)
 
-    def draw_line(a, b):
-        return draw.line((tuple(landmarks_predicted[a]), tuple(landmarks_predicted[b])), fill='green', width=width)
+    if lines:
+        def draw_line(a, b):
+            return draw.line((tuple(landmarks[a]), tuple(landmarks[b])), fill=lines_color, width=width)
 
-    draw_line(L_EYE_LEFT, L_EYE_RIGHT)
-    draw_line(L_EYE_RIGHT, L_MOUTH)
-    draw_line(L_MOUTH, L_EYE_LEFT)
-    draw_line(L_EAR_LEFT, L_EYE_LEFT)
-    draw_line(L_EAR_LEFT, L_EYE_RIGHT)
-    draw_line(L_EAR_RIGHT, L_EYE_LEFT)
-    draw_line(L_EAR_RIGHT, L_EYE_RIGHT)
-    draw_line(L_EAR_RIGHT, L_EAR_LEFT)
+        draw_line(L_EYE_LEFT, L_EYE_RIGHT)
+        draw_line(L_EYE_RIGHT, L_MOUTH)
+        draw_line(L_MOUTH, L_EYE_LEFT)
+        draw_line(L_EAR_LEFT, L_EYE_LEFT)
+        draw_line(L_EAR_LEFT, L_EYE_RIGHT)
+        draw_line(L_EAR_RIGHT, L_EYE_LEFT)
+        draw_line(L_EAR_RIGHT, L_EYE_RIGHT)
+        draw_line(L_EAR_RIGHT, L_EAR_LEFT)
 
-    for i_lnd, lnd in enumerate(landmarks_predicted):
-        draw.ellipse(((lnd[0] - width, lnd[1] - width), (lnd[0] + width, lnd[1] + width)), fill='yellow')
-        draw.text((lnd[0] + width, lnd[1] + width), str(i_lnd), font=fnt, fill='yellow')
+    for i_lnd, lnd in enumerate(landmarks):
+        draw.ellipse(((lnd[0] - width, lnd[1] - width), (lnd[0] + width, lnd[1] + width)), fill=color)
+        draw.text((lnd[0] + width, lnd[1] + width), str(i_lnd), font=fnt, fill=color)
 
-    for i_lnd, lnd in enumerate(landmarks_truth):
-        draw.ellipse(((lnd[0] - width, lnd[1] - width), (lnd[0] + width, lnd[1] + width)), fill='red')
-        draw.text((lnd[0] + width, lnd[1] + width), str(i_lnd), font=fnt, fill='red')
 
+def save_image(img, path):
     img.save(path)
+
+
+def save_with_landmarks(img, path, landmarks_truth=(), landmarks_predicted=()):
+    img = img.copy()
+    draw_landmarks(img, landmarks_predicted)
+    draw_landmarks(img, landmarks_truth, color='red', lines=False)
+    save_image(img, path)

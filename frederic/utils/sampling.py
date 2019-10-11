@@ -3,7 +3,7 @@ import numpy as np
 from . import image
 
 
-def sample_bounding_box(size, landmarks, margin=0.1, bb_min=0.8):
+def sample_bounding_box(size, landmarks, margin=0.1, bb_min=1):
     """
     Samples a bounding box for cropping so that at least 'bb_min' of each dimension of the original bounding box
     is present in the new cropped image.
