@@ -2,11 +2,10 @@ __pycache__/
 *.py[cod]
 
 *.csv
-frederic/hpsearch*.bat
+tools/hpsearch*.bat
 
 .idea/
-frederic/data/
-frederic/logs/
-frederic/models/
+tools/logs/
+tools/models/
 tmp/
 tools/output/
