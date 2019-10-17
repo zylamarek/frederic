@@ -12,7 +12,8 @@ class CatDataGenerator(keras.utils.Sequence):
     def __init__(self, path, output_type, include_landmarks=False, batch_size=64, shuffle=True,
                  flip_horizontal=False, rotate=False, rotate_90=False, rotate_n=0,
                  crop=False, crop_scale_balanced_black=False, crop_scale_balanced=False,
-                 sampling_method_rotate='random', sampling_method_resize='random'):
+                 sampling_method_rotate='random', sampling_method_resize='random',
+                 crop_landmarks_margin=0.1, crop_landmarks_random_margin=0.1):
         self.path = path
         self.output_type = output_type
         self.include_landmarks = include_landmarks
@@ -28,6 +29,8 @@ class CatDataGenerator(keras.utils.Sequence):
         self.crop_scale_balanced = crop_scale_balanced
         self.sampling_method_rotate = sampling_method_rotate
         self.sampling_method_resize = sampling_method_resize
+        self.crop_landmarks_margin = crop_landmarks_margin
+        self.crop_landmarks_random_margin = crop_landmarks_random_margin
 
         if self.output_type == 'bbox':
             self.output_dim = 4
@@ -96,7 +99,8 @@ class CatDataGenerator(keras.utils.Sequence):
                 img, landmarks = frederic.utils.image.crop(img, landmarks, bb_crop)
         else:
             if self.crop:
-                bb_crop = frederic.utils.sampling.sample_bounding_box_landmarks(landmarks)
+                bb_crop = frederic.utils.sampling.sample_bounding_box_landmarks(landmarks, self.crop_landmarks_margin,
+                                                                                self.crop_landmarks_random_margin)
                 img, landmarks = frederic.utils.image.crop(img, landmarks, bb_crop)
 
         if self.flip_horizontal and np.random.random_sample() > 0.5:
