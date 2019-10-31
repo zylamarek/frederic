@@ -5,7 +5,6 @@ import numpy as np
 import context
 from frederic import Predictor
 from frederic.cat_data_generator import CatDataGenerator
-import frederic.utils.general
 import frederic.utils.image
 
 if __name__ == '__main__':

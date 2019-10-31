@@ -18,7 +18,7 @@ The predictor assumes that there is one and only one cat in the picture.
 Predicted landmarks are presented as yellow dots
 (0 - right eye, 1 - left eye, 2 - mouth, 3 - right ear, 4 - left ear).*
 
-## Installation
+# Installation
 
 **Frederic** hasn't been distributed as a package, so the only way to use it (at least for now)
 is to get a copy of this repo by either `git clone` or download.
@@ -34,7 +34,7 @@ One way to achieve it is to set the PYTHONPATH environment variable:
 `set "PYTHONPATH=C:\path\to\frederic"` on Windows or
 `export PYTHONPATH="/path/to/frederic"` on Linux.
 
-## Usage
+# Usage
 
 Once **frederic** is successfully installed you can run this example:
 
@@ -61,7 +61,7 @@ is created. You can control this behavior with the `lazy` parameter of the const
 With `lazy=False` the models are loaded upon predictor creation, so the consequent
 call to `predict` method will happen without delay.
 
-## Performance
+# Performance
 
 **An average error of each landmark along any axis is 2.07 pixels or 1.6% of a cat face size.**
 
@@ -127,7 +127,7 @@ MAPE | 0.69 | 0.86 | 0.84
 MSE | 2.97 | 6.79 | 7.71
 RMSE | 1.72 | 2.61 | 2.78
 
-## Training
+# Training
 
 To train the models yourself you should first get a copy of [augmented cat-dataset](https://github.com/zylamarek/cat-dataset).
 Move the data into the parent directory of your **frederic** copy or adjust the data path in the script.
@@ -140,7 +140,7 @@ predictor = frederic.Predictor(bbox_model_path='/path/to/models/2019-10-07_11.35
                                landmarks_model_path='/path/to/models/2019-10-04_12.56.47_mse.h5')
 ```
 
-## Structure
+# Structure
 
 The predictor consists of two models - ROI predictor and landmarks-inside-ROI predictor.
 Both models have similar structure. They accept 224x224 RGB images as inputs. These are fed into
