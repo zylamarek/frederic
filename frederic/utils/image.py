@@ -128,7 +128,7 @@ def crop(img, landmarks, bounding_box):
 
 def draw_landmarks(img, landmarks, color='yellow', lines=True, lines_color='green', width=2):
     draw = ImageDraw.Draw(img)
-    fnt = ImageFont.truetype("arial.ttf", 16)
+    fnt = ImageFont.load_default()
 
     if lines:
         def draw_line(a, b):
